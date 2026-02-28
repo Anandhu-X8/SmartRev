@@ -281,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         crossAxisCount: 2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: 0.85,
+        childAspectRatio: 3.5,
       ),
       itemCount: topics.length,
       itemBuilder: (context, index) {
