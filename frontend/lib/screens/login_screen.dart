@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../main.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -9,8 +11,18 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
+  final TextEditingController _usernameController = TextEditingController();
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    super.dispose();
+  }
 
   void _handleLogin() {
+    // Store username in AuthProvider state
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    authProvider.login(_usernameController.text.trim());
     Navigator.pushReplacementNamed(context, '/home');
   }
 
@@ -25,7 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              theme.colorScheme.secondary.withOpacity(0.5), // Light green tint
+              theme.colorScheme.secondary.withOpacity(0.5),
               theme.scaffoldBackgroundColor,
             ],
             stops: const [0.0, 0.4],
@@ -82,6 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           TextField(
+                            controller: _usernameController,
                             decoration: InputDecoration(
                               labelText: 'Username',
                               prefixIcon: Icon(Icons.person_outline, color: theme.primaryColor),
@@ -127,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               gradient: LinearGradient(
                                 colors: [
                                   theme.primaryColor,
-                                  Color(0xFF059669), // Slightly darker green
+                                  Color(0xFF059669),
                                 ],
                               ),
                               boxShadow: [

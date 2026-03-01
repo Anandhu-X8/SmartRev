@@ -8,20 +8,36 @@ import 'screens/home_screen.dart';
 import 'screens/add_topic_screen.dart';
 import 'screens/revision_screen.dart';
 import 'screens/results_screen.dart';
-import 'screens/results_screen.dart';
 import 'screens/analytics_screen.dart';
 import 'screens/upload_notes_screen.dart';
+import 'screens/flashcard_revision_screen.dart';
 import 'providers/topics_provider.dart';
 
-// Dummy provider for testing
+/// Auth provider that holds login state and username.
 class AuthProvider extends ChangeNotifier {
   bool _isAuthenticated = false;
+  String _username = 'User';
+
   bool get isAuthenticated => _isAuthenticated;
+  String get username => _username;
+
+  /// Called on login to store the username in state.
+  void login(String username) {
+    _username = username.isNotEmpty ? username : 'User';
+    _isAuthenticated = true;
+    notifyListeners();
+  }
+
+  void logout() {
+    _username = 'User';
+    _isAuthenticated = false;
+    notifyListeners();
+  }
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Firebase (wrapped in try-catch in case options not provided yet)
   try {
     await Firebase.initializeApp();
@@ -59,6 +75,7 @@ class SmartRevisionApp extends StatelessWidget {
         '/results': (context) => const ResultsScreen(),
         '/analytics': (context) => const AnalyticsScreen(),
         '/upload-notes': (context) => const UploadNotesScreen(),
+        '/flashcard-revision': (context) => const FlashcardRevisionScreen(),
       },
     );
   }

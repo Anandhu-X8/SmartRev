@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/topics_provider.dart';
+import '../main.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,6 +36,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final topicsProvider = Provider.of<TopicsProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
     final allTopics = topicsProvider.topics;
     final queue = topicsProvider.todaysRevisionQueue;
 
@@ -55,7 +57,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       body: RefreshIndicator(
         color: theme.primaryColor,
         onRefresh: () async {
-          // Simulate refresh
           await Future.delayed(const Duration(seconds: 1));
         },
         child: SingleChildScrollView(
@@ -66,9 +67,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildGreetingSection(theme),
+                // CHANGE 1 – Dynamic greeting (no streak)
+                _buildGreetingSection(theme, authProvider),
                 const SizedBox(height: 32),
                 
+                // CHANGE 5 – Show ALL topics in Today's Queue
                 if (queue.isNotEmpty) ...[
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -91,8 +94,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _buildQueueCard(queue.first, theme), // Show top priority
-                  const SizedBox(height: 32),
+                  // Show ALL queue items, not just the first one
+                  ...queue.map((topic) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: _buildQueueCard(topic, theme),
+                  )),
+                  const SizedBox(height: 20),
                 ],
                 
                 Row(
@@ -157,61 +164,41 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildGreetingSection(ThemeData theme) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  /// CHANGE 1 – Dynamic greeting, CHANGE 2 – Streak removed
+  Widget _buildGreetingSection(ThemeData theme, AuthProvider authProvider) {
+    // Dynamic username: logged in → username, else → "User"
+    final displayName = authProvider.isAuthenticated ? authProvider.username : 'User';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Good Evening,',
-              style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Abhinav',
-              style: theme.textTheme.displayLarge?.copyWith(fontSize: 28),
-            ),
-          ],
+        Text(
+          'Greetings,',
+          style: theme.textTheme.bodyMedium?.copyWith(fontSize: 16),
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [theme.primaryColor, const Color(0xFF047857)],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: theme.primaryColor.withOpacity(0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              )
-            ]
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.local_fire_department, color: Colors.amber, size: 24),
-              SizedBox(width: 8),
-              Text(
-                '5 Days',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-              )
-            ],
-          ),
-        )
+        const SizedBox(height: 4),
+        Text(
+          displayName,
+          style: theme.textTheme.displayLarge?.copyWith(fontSize: 28),
+        ),
       ],
     );
   }
 
+  /// Queue card – navigates to flashcard revision or quiz revision depending on content.
   Widget _buildQueueCard(Topic topic, ThemeData theme) {
     return InkWell(
       onTap: () {
-        Navigator.pushNamed(context, '/revision', arguments: {
-          'topicId': topic.id,
-          'quiz': topic.quiz,
-        });
+        // Navigate to flashcard revision if flashcards exist, otherwise quiz
+        if (topic.flashcards.isNotEmpty) {
+          Navigator.pushNamed(context, '/flashcard-revision', arguments: {
+            'topicId': topic.id,
+          });
+        } else if (topic.quiz != null) {
+          Navigator.pushNamed(context, '/revision', arguments: {
+            'topicId': topic.id,
+            'quiz': topic.quiz,
+          });
+        }
       },
       borderRadius: BorderRadius.circular(20),
       child: Container(
@@ -301,69 +288,85 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           statusText = 'Strong';
         }
 
-        return Card(
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
+        return InkWell(
+          onTap: () {
+            // Navigate to flashcard revision if flashcards exist, otherwise quiz
+            if (topic.flashcards.isNotEmpty) {
+              Navigator.pushNamed(context, '/flashcard-revision', arguments: {
+                'topicId': topic.id,
+              });
+            } else if (topic.quiz != null) {
+              Navigator.pushNamed(context, '/revision', arguments: {
+                'topicId': topic.id,
+                'quiz': topic.quiz,
+              });
+            }
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            height: 8,
+                            width: 8,
+                            decoration: BoxDecoration(color: strengthColor, shape: BoxShape.circle),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            statusText,
+                            style: TextStyle(color: strengthColor, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      if (topic.isAiGenerated)
                         Container(
-                          height: 8,
-                          width: 8,
-                          decoration: BoxDecoration(color: strengthColor, shape: BoxShape.circle),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          statusText,
-                          style: TextStyle(color: strengthColor, fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                      ],
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'AI',
+                            style: TextStyle(color: Colors.green.shade800, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        )
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: Text(
+                      topic.name,
+                      style: theme.textTheme.titleLarge?.copyWith(fontSize: 16),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    if (topic.isAiGenerated)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'AI',
-                          style: TextStyle(color: Colors.green.shade800, fontSize: 10, fontWeight: FontWeight.bold),
-                        ),
-                      )
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: Text(
-                    topic.name,
-                    style: theme.textTheme.titleLarge?.copyWith(fontSize: 16),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: strength / 100,
-                    backgroundColor: Colors.grey.shade200,
-                    color: strengthColor,
-                    minHeight: 6,
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: strength / 100,
+                      backgroundColor: Colors.grey.shade200,
+                      color: strengthColor,
+                      minHeight: 6,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Revise: ${topic.nextRevisionDate}',
-                  style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12),
-                )
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                    'Revise: ${topic.nextRevisionDate}',
+                    style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12),
+                  )
+                ],
+              ),
             ),
           ),
         );
