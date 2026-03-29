@@ -2,10 +2,10 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Dict, Any
 from models import TopicDB, RevisionActivityParams, RevisionResult
 from firebase import get_db
-import google.generativeai as genai
+from mistralai.client import Mistral
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from services.spaced_repetition import calculate_next_revision
 import uuid
 
@@ -15,9 +15,9 @@ router = APIRouter()
 def get_current_user_id():
     return "test_user_id" # Replace with actual Firebase Auth verification
 
-# Configure Gemini
-api_key = os.getenv("GEMINI_API_KEY", "DUMMY_KEY_FOR_NOW")
-genai.configure(api_key=api_key)
+# Configure Mistral
+api_key = os.getenv("MISTRAL_API_KEY")
+mistral_client = Mistral(api_key=api_key)
 
 @router.get("/quiz/{topic_id}")
 def get_quiz_for_topic(topic_id: str, ui: str = Depends(get_current_user_id)):
@@ -68,10 +68,9 @@ def generate_revision_activity(params: RevisionActivityParams, ui: str = Depends
     prompt += "Return ONLY valid JSON format with questions and answers. For MCQs, provide 'question', 'options' (list of 4), and 'correct_answer_index' (0-3). For Flashcards, provide 'front' and 'back'."
     
     try:
-        model = genai.GenerativeModel("gemini-1.5-pro")
-        response = model.generate_content(prompt)
+        response = mistral_client.chat.complete(model="mistral-small-latest", messages=[{"role": "user", "content": prompt}])
         # Parse the JSON string
-        raw_text = response.text.strip()
+        raw_text = response.choices[0].message.content.strip()
         if raw_text.startswith("```json"):
             raw_text = raw_text[7:-3]
         

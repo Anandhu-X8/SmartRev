@@ -95,18 +95,9 @@ class _RevisionScreenState extends State<RevisionScreen> with SingleTickerProvid
         final wrongAnswers = totalQuestions - _correctAnswers;
         final scorePercentage = totalQuestions > 0 ? ((_correctAnswers / totalQuestions) * 100).toInt() : 0;
         
-        // Update local memory strength Provider Logic
-        int strengthChange = 0;
-        if (scorePercentage >= 80) {
-           strengthChange = 15;
-        } else if (scorePercentage >= 50) {
-           strengthChange = 5;
-        } else {
-           strengthChange = -10;
-        }
-        
+        // Update via backend API
         if (_topicId != "dummy_id") {
-          Provider.of<TopicsProvider>(context, listen: false).updateTopicResults(_topicId, _correctAnswers, strengthChange);
+          Provider.of<TopicsProvider>(context, listen: false).updateTopicResults(_topicId, _userAnswers);
         }
         
         // Pass dynamic data instead of hardcoded 85% accuracy

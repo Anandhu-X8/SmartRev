@@ -24,6 +24,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
     _fadeAnimation = CurvedAnimation(parent: _animationController, curve: Curves.easeIn);
     _animationController.forward();
+    
+    // Load topics from local storage first, then fetch from backend
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final provider = Provider.of<TopicsProvider>(context, listen: false);
+      // Load from local storage first for immediate display
+      await provider.loadTopicsFromLocal();
+      // Then fetch from backend to get latest data
+      provider.fetchTopics();
+    });
   }
 
   @override

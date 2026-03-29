@@ -1,18 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-class AnalyticsScreen extends StatelessWidget {
+class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
+
+  @override
+  State<AnalyticsScreen> createState() => _AnalyticsScreenState();
+}
+
+class _AnalyticsScreenState extends State<AnalyticsScreen> {
+  int _totalTopics = 0;
+  int _strongTopics = 0;
+  int _moderateTopics = 0;
+  int _weakTopics = 0;
+  int _streak = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAnalytics();
+  }
+
+  Future<void> _fetchAnalytics() async {
+    try {
+      final response = await http.get(Uri.parse('http://localhost:8000/api/analytics/dashboard'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _totalTopics = data['total_topics'] ?? 0;
+          _strongTopics = data['strong_topics'] ?? 0;
+          _moderateTopics = data['moderate_topics'] ?? 0;
+          _weakTopics = data['weak_topics'] ?? 0;
+          _streak = data['revision_streak'] ?? 0;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch analytics: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // Dummy Analytics Data
-    final totalTopics = 120;
-    final strongTopics = 65;
-    final moderateTopics = 35;
-    final weakTopics = 20;
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Progress Analytics')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Progress Analytics')),
@@ -21,16 +64,47 @@ class AnalyticsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSummaryRow(totalTopics, strongTopics, moderateTopics, weakTopics, theme),
+            _buildSummaryRow(_totalTopics, _strongTopics, _moderateTopics, _weakTopics, theme),
+            const SizedBox(height: 20),
+            _buildStreakCard(theme),
             const SizedBox(height: 40),
             Text('Memory Strength Distribution', style: theme.textTheme.titleLarge?.copyWith(fontSize: 20)),
             const SizedBox(height: 16),
-            _buildPieChart(strongTopics, moderateTopics, weakTopics, theme),
+            _buildPieChart(_strongTopics, _moderateTopics, _weakTopics, theme),
             const SizedBox(height: 40),
             Text('Weekly Revision Activity', style: theme.textTheme.titleLarge?.copyWith(fontSize: 20)),
             const SizedBox(height: 16),
-            _buildLineChart(theme), // Using LineChart with gradient fill for premium look
+            _buildLineChart(theme),
             const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStreakCard(ThemeData theme) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Row(
+          children: [
+            Icon(Icons.local_fire_department, color: Colors.orange, size: 40),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Revision Streak',
+                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  '$_streak days',
+                  style: theme.textTheme.titleLarge?.copyWith(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -78,6 +152,18 @@ class AnalyticsScreen extends StatelessWidget {
   }
 
   Widget _buildPieChart(int strong, int mod, int weak, ThemeData theme) {
+    final total = strong + mod + weak;
+    if (total == 0) {
+      return Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: const Padding(
+          padding: EdgeInsets.all(40.0),
+          child: Center(child: Text('No data available')),
+        ),
+      );
+    }
+
     return Card(
       elevation: 4,
       shadowColor: theme.primaryColor.withOpacity(0.1),
@@ -97,23 +183,23 @@ class AnalyticsScreen extends StatelessWidget {
                     startDegreeOffset: -90,
                     sections: [
                       PieChartSectionData(
-                        color: const Color(0xFF10B981), // Strong
+                        color: const Color(0xFF10B981),
                         value: strong.toDouble(),
-                        title: '${((strong / (strong + mod + weak)) * 100).toInt()}%',
+                        title: '${((strong / total) * 100).toInt()}%',
                         radius: 40,
                         titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                       PieChartSectionData(
-                        color: const Color(0xFFF59E0B), // Moderate
+                        color: const Color(0xFFF59E0B),
                         value: mod.toDouble(),
-                        title: '${((mod / (strong + mod + weak)) * 100).toInt()}%',
+                        title: '${((mod / total) * 100).toInt()}%',
                         radius: 35,
                         titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                       ),
                       PieChartSectionData(
-                        color: const Color(0xFFEF4444), // Weak
+                        color: const Color(0xFFEF4444),
                         value: weak.toDouble(),
-                        title: '${((weak / (strong + mod + weak)) * 100).toInt()}%',
+                        title: '${((weak / total) * 100).toInt()}%',
                         radius: 30,
                         titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10),
                       ),

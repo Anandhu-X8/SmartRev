@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "856339034594",
+    "project_id": "smartrev-4291b",
+    "storage_bucket": "smartrev-4291b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:856339034594:android:5e9489fc037596699089bb",
+        "android_client_info": {
+          "package_name": "com.example.frontend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRUVO_R6tba7kyg60bHmV4AQ6bIyin7hc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

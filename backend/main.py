@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 from routes import topics, revision, analytics, notes
 from firebase import init_firebase
 
+load_dotenv(dotenv_path="../.env")
 init_firebase()
 
 app = FastAPI(title="Smart Revision System API")

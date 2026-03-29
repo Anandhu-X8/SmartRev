@@ -12,7 +12,11 @@ class TopicBase(BaseModel):
     is_ai_generated: bool = False # Identify if generated from notes
 
 class TopicCreate(TopicBase):
-    pass
+    flashcards: Optional[List[FlashcardItem]] = None
+
+class FlashcardItem(BaseModel):
+    question: str
+    answer: str
 
 class TopicDB(TopicBase):
     id: str
@@ -22,6 +26,7 @@ class TopicDB(TopicBase):
     next_revision_date: datetime
     memory_strength: float = 0.0 # 0-100
     revision_count: int = 0
+    flashcards: Optional[List[FlashcardItem]] = None
 
 class QuestionDB(BaseModel):
     id: str

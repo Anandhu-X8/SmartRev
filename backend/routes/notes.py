@@ -4,7 +4,7 @@ from models import TopicDB, QuizDB, UploadedNotesDB
 from firebase import get_db
 import uuid
 from datetime import datetime, timedelta
-import google.generativeai as genai
+from mistralai.client import Mistral
 import os
 import json
 import shutil
@@ -96,8 +96,8 @@ async def upload_notes(
         )
         
         # 4. Generate Quiz via Gemini
-        api_key = os.getenv("GEMINI_API_KEY", "DUMMY_KEY_FOR_NOW")
-        genai.configure(api_key=api_key)
+        api_key = os.getenv("MISTRAL_API_KEY")
+        client = Mistral(api_key=api_key)
         
         prompt = (
             f"You are an expert educator. Extract the most important concepts from the following notes "
@@ -111,9 +111,8 @@ async def upload_notes(
         
         generated_questions = []
         try:
-            model = genai.GenerativeModel("gemini-1.5-pro")
-            response = model.generate_content(prompt)
-            raw_text = response.text.strip()
+            response = client.chat.complete(model="mistral-small-latest", messages=[{"role": "user", "content": prompt}])
+            raw_text = response.choices[0].message.content.strip()
             
             if raw_text.startswith("```json"):
                 raw_text = raw_text[7:-3].strip()
@@ -131,7 +130,7 @@ async def upload_notes(
                     "explanation": q.get("explanation", "")
                 })
         except Exception as e:
-            print(f"Gemini API failed or is unconfigured: {e}")
+            print(f"Mistral API failed or is unconfigured: {e}")
             # Provide Fallback Dummy AI Questions so frontend doesn't break
             for i in range(5):
                 generated_questions.append({
@@ -180,8 +179,6 @@ async def upload_notes(
                 created_at=now
             )
             
-        return new_quiz
-        
         return new_quiz
         
     except Exception as e:
