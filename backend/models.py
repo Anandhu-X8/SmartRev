@@ -58,3 +58,7 @@ class RevisionResult(BaseModel):
     # accuracy: float # Removing accuracy from frontend input to calculate it properly on backend
     user_answers: List[int] # index of selected option for each question
     response_time_seconds: Optional[int] = None
+
+class FlashcardRevisionResult(BaseModel):
+    topic_id: str
+    memory_strength: int = Field(ge=0, le=100)  # User-rated confidence converted to 0-100

@@ -56,9 +56,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
-            child: CircleAvatar(
-              backgroundColor: theme.colorScheme.secondary,
-              child: Icon(Icons.person, color: theme.primaryColor),
+            child: GestureDetector(
+              onTap: () => Navigator.pushNamed(context, '/profile'),
+              child: CircleAvatar(
+                backgroundColor: theme.colorScheme.secondary,
+                child: Icon(Icons.person, color: theme.primaryColor),
+              ),
             ),
           )
         ],
@@ -66,7 +69,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       body: RefreshIndicator(
         color: theme.primaryColor,
         onRefresh: () async {
-          await Future.delayed(const Duration(seconds: 1));
+          final provider = Provider.of<TopicsProvider>(context, listen: false);
+          await provider.fetchTopics();
+          await provider.fetchRevisionQueue();
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -197,6 +202,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget _buildQueueCard(Topic topic, ThemeData theme) {
     return InkWell(
       onTap: () {
+        // Only allow revision if topic is due today
+        if (topic.reviseStatus != 'today') return;
+
         // Navigate to flashcard revision if flashcards exist, otherwise quiz
         if (topic.flashcards.isNotEmpty) {
           Navigator.pushNamed(context, '/flashcard-revision', arguments: {
@@ -299,6 +307,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
         return InkWell(
           onTap: () {
+            // Only allow revision if topic is due today
+            if (topic.reviseStatus != 'today') return;
+
             // Navigate to flashcard revision if flashcards exist, otherwise quiz
             if (topic.flashcards.isNotEmpty) {
               Navigator.pushNamed(context, '/flashcard-revision', arguments: {
@@ -312,7 +323,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             }
           },
           borderRadius: BorderRadius.circular(16),
-          child: Card(
+          child: Opacity(
+            opacity: topic.reviseStatus == 'today' ? 1.0 : 0.5,
+            child: Card(
             margin: EdgeInsets.zero,
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -377,6 +390,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ],
               ),
             ),
+          ),
           ),
         );
       },

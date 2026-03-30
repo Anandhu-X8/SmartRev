@@ -83,11 +83,13 @@ class _FlashcardRevisionScreenState extends State<FlashcardRevisionScreen>
   }
 
   /// Submit confidence and update memory strength via provider.
-  void _submitConfidence() {
+  void _submitConfidence() async {
     // Convert confidence (1-5) to memory strength (0-100)
     final newStrength = (_confidenceValue * 20).toInt();
-    Provider.of<TopicsProvider>(context, listen: false)
+    await Provider.of<TopicsProvider>(context, listen: false)
         .updateMemoryStrength(_topicId, newStrength);
+
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -98,7 +100,7 @@ class _FlashcardRevisionScreenState extends State<FlashcardRevisionScreen>
       ),
     );
 
-    Navigator.pop(context);
+    Navigator.pop(context, true);
   }
 
   @override
@@ -237,6 +239,24 @@ class _FlashcardRevisionScreenState extends State<FlashcardRevisionScreen>
   /// Screen shown after all flashcards are completed.
   /// Displays a confidence slider to update memory strength.
   Widget _buildConfidenceScreen(ThemeData theme) {
+    final strengthValue = (_confidenceValue * 20).toInt();
+    Color strengthColor;
+    String strengthLabel;
+    IconData strengthIcon;
+    if (strengthValue <= 40) {
+      strengthColor = const Color(0xFFEF4444);
+      strengthLabel = 'Weak';
+      strengthIcon = Icons.sentiment_dissatisfied;
+    } else if (strengthValue <= 70) {
+      strengthColor = const Color(0xFFF59E0B);
+      strengthLabel = 'Moderate';
+      strengthIcon = Icons.sentiment_neutral;
+    } else {
+      strengthColor = const Color(0xFF10B981);
+      strengthLabel = 'Strong';
+      strengthIcon = Icons.sentiment_very_satisfied;
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Rate Your Confidence')),
       body: SafeArea(
@@ -282,7 +302,7 @@ class _FlashcardRevisionScreenState extends State<FlashcardRevisionScreen>
                       min: 1,
                       max: 5,
                       divisions: 4,
-                      activeColor: theme.primaryColor,
+                      activeColor: strengthColor,
                       label: _confidenceValue.toInt().toString(),
                       onChanged: (val) {
                         setState(() => _confidenceValue = val);
@@ -293,22 +313,38 @@ class _FlashcardRevisionScreenState extends State<FlashcardRevisionScreen>
                 ],
               ),
               const SizedBox(height: 8),
-              // Percentage preview
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: theme.primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'Memory Strength: ${(_confidenceValue * 20).toInt()}%',
-                    style: TextStyle(
-                      color: theme.primaryColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+
+              // Memory strength feedback card
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                decoration: BoxDecoration(
+                  color: strengthColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: strengthColor.withOpacity(0.3)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(strengthIcon, color: strengthColor, size: 28),
+                    const SizedBox(width: 10),
+                    Text(
+                      strengthLabel,
+                      style: TextStyle(
+                        color: strengthColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '($strengthValue%)',
+                      style: TextStyle(
+                        color: strengthColor.withOpacity(0.7),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 48),

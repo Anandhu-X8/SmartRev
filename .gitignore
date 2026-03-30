@@ -11,6 +11,7 @@ __pycache__/
 .Python
 venv/
 env/
+.venv/
 pip-log.txt
 pip-delete-this-directory.txt
 .tox/
@@ -27,11 +28,19 @@ coverage.xml
 dist/
 build/
 *.egg
+*.log
 
-# Firebase credentials
+# Firebase credentials & keys
 firebase-adminsdk.json
 *firebase-adminsdk*.json
 serviceAccountKey.json
+backend/keys/
+*service-account*.json
+
+# Firebase generated configs (contain API keys)
+frontend/android/app/google-services.json
+frontend/ios/Runner/GoogleService-Info.plist
+frontend/lib/firebase_options.dart
 
 # Backend temp files
 backend/temp_uploads/
@@ -57,6 +66,7 @@ frontend/pubspec.lock
 *~
 .DS_Store
 Thumbs.db
+*.iml
 
 # Android
 frontend/android/.gradle/
@@ -64,6 +74,9 @@ frontend/android/local.properties
 frontend/android/app/debug/
 frontend/android/app/profile/
 frontend/android/app/release/
+frontend/android/.gradle/
+*.jks
+*.keystore
 
 # iOS
 frontend/ios/.symlinks/

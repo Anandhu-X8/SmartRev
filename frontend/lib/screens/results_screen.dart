@@ -36,7 +36,6 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
     final int correctAnswers = args['correctAnswers'] ?? 0;
     final int wrongAnswers = args['wrongAnswers'] ?? (totalQuestions - correctAnswers);
     final int scorePercentage = args['scorePercentage'] ?? (totalQuestions > 0 ? ((correctAnswers / totalQuestions) * 100).toInt() : 0);
-    final String topicId = args['topicId'] ?? '';
 
     // Performance Label Logic
     String performanceLabel = '';

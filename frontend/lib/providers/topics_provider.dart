@@ -1,31 +1,10 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:io' show Platform;
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-// Backend API base URL - adjust for your environment
-// Use 10.0.2.2 for Android emulator, localhost for iOS simulator/web, or your machine's IP for physical devices
-String get _apiBase {
-  // Check if running on web
-  if (kIsWeb) {
-    return 'http://localhost:8000';
-  }
-  
-  // For mobile platforms, use dart:io Platform
-  if (Platform.isAndroid) {
-    // Android emulator uses 10.0.2.2 to access host machine's localhost
-    return 'http://10.0.2.2:8000';
-  } else if (Platform.isIOS) {
-    // iOS simulator can use localhost
-    return 'http://localhost:8000';
-  }
-  
-  // Default to localhost for desktop
-  return 'http://localhost:8000';
-}
+import 'package:firebase_auth/firebase_auth.dart';
+import '../config.dart';
 
 class QuizQuestion {
   final String question;
@@ -93,7 +72,9 @@ class Topic {
       try {
         final dt = DateTime.parse(json['next_revision_date']);
         final now = DateTime.now();
-        final diff = dt.difference(now).inDays;
+        final today = DateTime(now.year, now.month, now.day);
+        final revDate = DateTime(dt.year, dt.month, dt.day);
+        final diff = revDate.difference(today).inDays;
         if (diff <= 0) {
           nextRev = 'Today';
         } else if (diff == 1) {
@@ -136,6 +117,25 @@ class TopicsProvider extends ChangeNotifier {
 
   List<Topic> get topics => _topics;
   bool get isLoading => _isLoading;
+
+  /// Get auth headers with Firebase ID token
+  Future<Map<String, String>> _getAuthHeaders() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final token = await user?.getIdToken();
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+
+  /// Get multipart auth headers (without Content-Type, as http sets it)
+  Future<Map<String, String>> _getMultipartAuthHeaders() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final token = await user?.getIdToken();
+    return {
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
 
   /// Returns all topics that should be revised today.
   List<Topic> get todaysRevisionQueue {
@@ -187,7 +187,8 @@ class TopicsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await http.get(Uri.parse('$_apiBase/api/topics/'));
+      final headers = await _getAuthHeaders();
+      final response = await http.get(Uri.parse('$apiBase/api/topics/'), headers: headers);
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         _topics = data.map((json) => Topic.fromJson(json)).toList();
@@ -205,7 +206,8 @@ class TopicsProvider extends ChangeNotifier {
   /// Fetch revision queue from backend
   Future<void> fetchRevisionQueue() async {
     try {
-      final response = await http.get(Uri.parse('$_apiBase/api/revision/queue'));
+      final headers = await _getAuthHeaders();
+      final response = await http.get(Uri.parse('$apiBase/api/revision/queue'), headers: headers);
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         final queueTopics = data.map((json) => Topic.fromJson(json)).toList();
@@ -240,9 +242,10 @@ class TopicsProvider extends ChangeNotifier {
         'answer': f.answer,
       }).toList();
 
+      final headers = await _getAuthHeaders();
       final response = await http.post(
-        Uri.parse('$_apiBase/api/topics/'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$apiBase/api/topics/'),
+        headers: headers,
         body: json.encode({
           'name': name,
           'subject_category': subject,
@@ -272,33 +275,97 @@ class TopicsProvider extends ChangeNotifier {
   }
 
   /// Update memory strength after flashcard revision with confidence slider.
+  /// Scheduling aligned with spec:
+  ///   Weak (<=40) → 4 days, Moderate (41-70) → 6 days, Strong (>70) → 8 days
   Future<void> updateMemoryStrength(String topicId, int newStrength) async {
     final topicIndex = _topics.indexWhere((t) => t.id == topicId);
-    if (topicIndex >= 0) {
-      final topic = _topics[topicIndex];
-      topic.memoryStrength = newStrength.clamp(0, 100);
+    if (topicIndex < 0) return;
 
-      // If strong memory, schedule for later; otherwise keep today
-      if (newStrength >= 70) {
-        topic.reviseStatus = 'later';
-        topic.nextRevisionDate = 'Tomorrow';
+    final topic = _topics[topicIndex];
+    final clamped = newStrength.clamp(0, 100);
+
+    // Sync to backend first
+    try {
+      final headers = await _getAuthHeaders();
+      final response = await http.post(
+        Uri.parse('$apiBase/api/revision/complete-flashcard'),
+        headers: headers,
+        body: json.encode({
+          'topic_id': topicId,
+          'memory_strength': clamped,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        topic.memoryStrength = ((data['memory_strength'] ?? clamped) as num).toInt();
+
+        // Update next revision date from backend response
+        if (data['next_revision_date'] != null) {
+          try {
+            final dt = DateTime.parse(data['next_revision_date']);
+            final now = DateTime.now();
+            final today = DateTime(now.year, now.month, now.day);
+            final revDate = DateTime(dt.year, dt.month, dt.day);
+            final diff = revDate.difference(today).inDays;
+            if (diff <= 0) {
+              topic.nextRevisionDate = 'Today';
+              topic.reviseStatus = 'today';
+            } else if (diff == 1) {
+              topic.nextRevisionDate = 'Tomorrow';
+              topic.reviseStatus = 'later';
+            } else {
+              topic.nextRevisionDate = 'In $diff days';
+              topic.reviseStatus = 'later';
+            }
+          } catch (_) {
+            _fallbackLocalSchedule(topic, clamped);
+          }
+        } else {
+          _fallbackLocalSchedule(topic, clamped);
+        }
       } else {
-        topic.reviseStatus = 'today';
-        topic.nextRevisionDate = 'Today';
+        // Backend failed, use local scheduling
+        _fallbackLocalSchedule(topic, clamped);
       }
-
-      // Save to local storage
-      await _saveTopicsToLocal();
-      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to sync flashcard revision to backend: $e');
+      _fallbackLocalSchedule(topic, clamped);
     }
+
+    // Save to local storage
+    await _saveTopicsToLocal();
+    notifyListeners();
+  }
+
+  void _fallbackLocalSchedule(Topic topic, int clamped) {
+    topic.memoryStrength = clamped;
+    int intervalDays;
+    if (clamped <= 40) {
+      intervalDays = 4;
+    } else if (clamped <= 70) {
+      intervalDays = 6;
+    } else {
+      intervalDays = 8;
+    }
+
+    final nextDate = DateTime.now().add(Duration(days: intervalDays));
+    final diff = nextDate.difference(DateTime.now()).inDays;
+    topic.reviseStatus = diff <= 0 ? 'today' : 'later';
+    topic.nextRevisionDate = diff <= 0
+        ? 'Today'
+        : diff == 1
+            ? 'Tomorrow'
+            : 'In $diff days';
   }
 
   /// Update topic results after quiz-based revision via backend API.
   Future<void> updateTopicResults(String topicId, List<int> userAnswers, {int? responseTimeSeconds}) async {
     try {
+      final headers = await _getAuthHeaders();
       final response = await http.post(
-        Uri.parse('$_apiBase/api/revision/complete'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$apiBase/api/revision/complete'),
+        headers: headers,
         body: json.encode({
           'topic_id': topicId,
           'user_answers': userAnswers,
@@ -316,8 +383,11 @@ class TopicsProvider extends ChangeNotifier {
           if (data['next_revision_date'] != null) {
             try {
               final dt = DateTime.parse(data['next_revision_date']);
+              // Compare dates only (ignore time) to avoid timezone issues
               final now = DateTime.now();
-              final diff = dt.difference(now).inDays;
+              final today = DateTime(now.year, now.month, now.day);
+              final revDate = DateTime(dt.year, dt.month, dt.day);
+              final diff = revDate.difference(today).inDays;
               if (diff <= 0) {
                 _topics[topicIndex].nextRevisionDate = 'Today';
                 _topics[topicIndex].reviseStatus = 'today';
@@ -343,7 +413,8 @@ class TopicsProvider extends ChangeNotifier {
   /// Get quiz for a topic from backend
   Future<Quiz?> fetchQuizForTopic(String topicId) async {
     try {
-      final response = await http.get(Uri.parse('$_apiBase/api/revision/quiz/$topicId'));
+      final headers = await _getAuthHeaders();
+      final response = await http.get(Uri.parse('$apiBase/api/revision/quiz/$topicId'), headers: headers);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List<dynamic> rawQuestions = data['questions'] ?? [];
@@ -366,8 +437,12 @@ class TopicsProvider extends ChangeNotifier {
   }
 
   Future<void> uploadNotesAndGenerateQuiz(PlatformFile file, String topicName) async {
-    final uri = Uri.parse('$_apiBase/api/notes/upload');
+    final uri = Uri.parse('$apiBase/api/notes/upload');
     var request = http.MultipartRequest('POST', uri);
+
+    // Add auth headers
+    final authHeaders = await _getMultipartAuthHeaders();
+    request.headers.addAll(authHeaders);
 
     if (topicName.isNotEmpty) {
       request.fields['topic_name'] = topicName;

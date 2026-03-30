@@ -2,14 +2,18 @@ import os
 import firebase_admin
 from firebase_admin import credentials, firestore
 
+# Project root is one level up from backend/
+_PROJECT_ROOT = os.path.join(os.path.dirname(__file__), '..')
+
 # Initialize Firebase Admin
 def init_firebase():
     if not firebase_admin._apps:
         try:
-            # User will need to provide their own service account key
-            # For now, we rely on application default credentials or a path in .env
             cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
             if cred_path:
+                # Resolve relative paths from project root
+                if not os.path.isabs(cred_path):
+                    cred_path = os.path.join(_PROJECT_ROOT, cred_path)
                 cred = credentials.Certificate(cred_path)
                 firebase_admin.initialize_app(cred)
             else:

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import '../main.dart';
+import '../services/firebase_service.dart';
+import '../services/notification_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,25 +14,124 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
-  final TextEditingController _usernameController = TextEditingController();
+  bool _isSignUp = false;
+  bool _isLoading = false;
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _displayNameController = TextEditingController();
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _displayNameController.dispose();
     super.dispose();
   }
 
-  void _handleLogin() {
-    // Store username in AuthProvider state
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    authProvider.login(_usernameController.text.trim());
-    Navigator.pushReplacementNamed(context, '/home');
+  Future<void> _handleAuth() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      _showError('Please fill in all fields');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final firebaseService = Provider.of<FirebaseService>(context, listen: false);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+      UserCredential credential;
+      if (_isSignUp) {
+        final displayName = _displayNameController.text.trim();
+        if (displayName.isEmpty) {
+          _showError('Please enter your name');
+          setState(() => _isLoading = false);
+          return;
+        }
+        credential = await firebaseService.signUp(
+          email: email,
+          password: password,
+          displayName: displayName,
+        );
+      } else {
+        credential = await firebaseService.signIn(
+          email: email,
+          password: password,
+        );
+      }
+
+      final user = credential.user;
+      if (user != null) {
+        final token = await user.getIdToken();
+        authProvider.login(
+          user.displayName ?? email.split('@').first,
+          uid: user.uid,
+          token: token,
+        );
+        // Initialize push notifications
+        final notifService = Provider.of<NotificationService>(context, listen: false);
+        await notifService.init(user.uid);
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      _showError(e.message ?? 'Authentication failed');
+    } catch (e) {
+      _showError('An error occurred: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final firebaseService = Provider.of<FirebaseService>(context, listen: false);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+      final credential = await firebaseService.signInWithGoogle();
+      final user = credential.user;
+      if (user != null) {
+        final token = await user.getIdToken();
+        authProvider.login(
+          user.displayName ?? user.email?.split('@').first ?? 'User',
+          uid: user.uid,
+          token: token,
+        );
+        // Initialize push notifications
+        final notifService = Provider.of<NotificationService>(context, listen: false);
+        await notifService.init(user.uid);
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      if (e.code != 'sign-in-cancelled') {
+        _showError(e.message ?? 'Google sign-in failed');
+      }
+    } catch (e) {
+      _showError('Google sign-in failed: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -41,7 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
               theme.scaffoldBackgroundColor,
             ],
             stops: const [0.0, 0.4],
-          )
+          ),
         ),
         child: SafeArea(
           child: Center(
@@ -64,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 32),
-                  
+
                   // Headlines
                   Text(
                     'Welcome to SmartRev',
@@ -93,22 +195,40 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          if (_isSignUp)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 16.0),
+                              child: TextField(
+                                controller: _displayNameController,
+                                decoration: InputDecoration(
+                                  labelText: 'Display Name',
+                                  prefixIcon: Icon(Icons.badge_outlined,
+                                      color: theme.primaryColor),
+                                ),
+                              ),
+                            ),
                           TextField(
-                            controller: _usernameController,
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
                             decoration: InputDecoration(
-                              labelText: 'Username',
-                              prefixIcon: Icon(Icons.person_outline, color: theme.primaryColor),
+                              labelText: 'Email',
+                              prefixIcon: Icon(Icons.email_outlined,
+                                  color: theme.primaryColor),
                             ),
                           ),
                           const SizedBox(height: 16),
                           TextField(
+                            controller: _passwordController,
                             obscureText: !_isPasswordVisible,
                             decoration: InputDecoration(
                               labelText: 'Password',
-                              prefixIcon: Icon(Icons.lock_outline, color: theme.primaryColor),
+                              prefixIcon: Icon(Icons.lock_outline,
+                                  color: theme.primaryColor),
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                                  _isPasswordVisible
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
                                   color: Colors.grey,
                                 ),
                                 onPressed: () {
@@ -120,19 +240,20 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {},
-                              child: Text(
-                                'Forgot Password?',
-                                style: TextStyle(
-                                  color: theme.primaryColor,
-                                  fontWeight: FontWeight.w600,
+                          if (!_isSignUp)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () {},
+                                child: Text(
+                                  'Forgot Password?',
+                                  style: TextStyle(
+                                    color: theme.primaryColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
                           const SizedBox(height: 24),
                           Container(
                             decoration: BoxDecoration(
@@ -140,7 +261,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               gradient: LinearGradient(
                                 colors: [
                                   theme.primaryColor,
-                                  Color(0xFF059669),
+                                  const Color(0xFF059669),
                                 ],
                               ),
                               boxShadow: [
@@ -149,15 +270,50 @@ class _LoginScreenState extends State<LoginScreen> {
                                   blurRadius: 12,
                                   offset: const Offset(0, 4),
                                 )
-                              ]
+                              ],
                             ),
                             child: ElevatedButton(
-                              onPressed: _handleLogin,
+                              onPressed: _isLoading ? null : _handleAuth,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.transparent,
                                 shadowColor: Colors.transparent,
                               ),
-                              child: const Text('Log In'),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(_isSignUp ? 'Sign Up' : 'Log In'),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Row(
+                            children: [
+                              Expanded(child: Divider(color: Colors.grey.shade300)),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                child: Text('OR', style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+                              ),
+                              Expanded(child: Divider(color: Colors.grey.shade300)),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            height: 48,
+                            child: OutlinedButton.icon(
+                              onPressed: _isLoading ? null : _handleGoogleSignIn,
+                              icon: const Icon(Icons.g_mobiledata, size: 28),
+                              label: const Text('Sign in with Google'),
+                              style: OutlinedButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                side: BorderSide(color: Colors.grey.shade300),
+                              ),
                             ),
                           ),
                         ],
@@ -165,19 +321,23 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 32),
-                  
-                  // Sign up
+
+                  // Toggle sign up / log in
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        "Don't have an account?",
+                        _isSignUp
+                            ? 'Already have an account?'
+                            : "Don't have an account?",
                         style: theme.textTheme.bodyLarge,
                       ),
                       TextButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          setState(() => _isSignUp = !_isSignUp);
+                        },
                         child: Text(
-                          'Sign Up',
+                          _isSignUp ? 'Log In' : 'Sign Up',
                           style: TextStyle(
                             color: theme.primaryColor,
                             fontWeight: FontWeight.w700,

@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // User profile document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Topics — flat collection, filtered by user_id in queries
+    match /topics/{topicId} {
+      allow read, write: if request.auth != null
+        && resource.data.user_id == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.user_id == request.auth.uid;
+    }
+
+    // Quizzes — flat collection, tied to topics
+    match /quizzes/{quizId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // Revision history — flat collection, filtered by user_id
+    match /revision_history/{historyId} {
+      allow read: if request.auth != null
+        && resource.data.user_id == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.user_id == request.auth.uid;
+      allow write: if request.auth != null
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    // Uploaded notes — flat collection, filtered by user_id
+    match /uploaded_notes/{noteId} {
+      allow read, write: if request.auth != null
+        && resource.data.user_id == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.user_id == request.auth.uid;
+    }
+
+    // FCM tokens — keyed by user ID
+    match /fcm_tokens/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

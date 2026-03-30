@@ -1,13 +1,10 @@
 from fastapi import APIRouter, Depends
 from typing import Dict, Any, List
 from firebase import get_db
+from auth import get_current_user_id
 from datetime import datetime, timedelta
 
 router = APIRouter()
-
-# Dummy dependency for user integration
-def get_current_user_id():
-    return "test_user_id" # Replace with actual Firebase Auth verification
 
 @router.get("/dashboard", response_model=Dict[str, Any])
 def get_dashboard_stats(ui: str = Depends(get_current_user_id)):

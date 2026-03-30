@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
+import '../config.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -15,7 +17,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   int _strongTopics = 0;
   int _moderateTopics = 0;
   int _weakTopics = 0;
-  int _streak = 0;
   bool _isLoading = true;
 
   @override
@@ -24,9 +25,26 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     _fetchAnalytics();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh analytics when route is revisited
+    _fetchAnalytics();
+  }
+
   Future<void> _fetchAnalytics() async {
     try {
-      final response = await http.get(Uri.parse('http://localhost:8000/api/analytics/dashboard'));
+      final user = FirebaseAuth.instance.currentUser;
+      final token = await user?.getIdToken();
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      };
+
+      final response = await http.get(
+        Uri.parse('$apiBase/api/analytics/dashboard'),
+        headers: headers,
+      );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
@@ -34,15 +52,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           _strongTopics = data['strong_topics'] ?? 0;
           _moderateTopics = data['moderate_topics'] ?? 0;
           _weakTopics = data['weak_topics'] ?? 0;
-          _streak = data['revision_streak'] ?? 0;
           _isLoading = false;
         });
+      } else {
+        setState(() => _isLoading = false);
       }
     } catch (e) {
       debugPrint('Failed to fetch analytics: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
@@ -65,46 +82,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSummaryRow(_totalTopics, _strongTopics, _moderateTopics, _weakTopics, theme),
-            const SizedBox(height: 20),
-            _buildStreakCard(theme),
             const SizedBox(height: 40),
             Text('Memory Strength Distribution', style: theme.textTheme.titleLarge?.copyWith(fontSize: 20)),
             const SizedBox(height: 16),
             _buildPieChart(_strongTopics, _moderateTopics, _weakTopics, theme),
             const SizedBox(height: 40),
-            Text('Weekly Revision Activity', style: theme.textTheme.titleLarge?.copyWith(fontSize: 20)),
-            const SizedBox(height: 16),
-            _buildLineChart(theme),
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStreakCard(ThemeData theme) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Row(
-          children: [
-            Icon(Icons.local_fire_department, color: Colors.orange, size: 40),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Revision Streak',
-                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                ),
-                Text(
-                  '$_streak days',
-                  style: theme.textTheme.titleLarge?.copyWith(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
           ],
         ),
       ),
@@ -116,9 +98,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _buildStatCard('Total\nTopics', t.toString(), theme.textTheme.bodyLarge!.color!, theme.primaryColor.withOpacity(0.1), theme),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         _buildStatCard('Strong\nMemory', s.toString(), const Color(0xFF10B981), const Color(0xFF10B981).withOpacity(0.1), theme),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
+        _buildStatCard('Moderate', m.toString(), const Color(0xFFF59E0B), const Color(0xFFF59E0B).withOpacity(0.1), theme),
+        const SizedBox(width: 6),
         _buildStatCard('Needs\nReview', w.toString(), const Color(0xFFEF4444), const Color(0xFFEF4444).withOpacity(0.1), theme),
       ],
     );
@@ -164,6 +148,36 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       );
     }
 
+    // Only show sections with value > 0 to avoid rendering issues
+    final sections = <PieChartSectionData>[];
+    if (strong > 0) {
+      sections.add(PieChartSectionData(
+        color: const Color(0xFF10B981),
+        value: strong.toDouble(),
+        title: '${((strong / total) * 100).toInt()}%',
+        radius: 50,
+        titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+      ));
+    }
+    if (mod > 0) {
+      sections.add(PieChartSectionData(
+        color: const Color(0xFFF59E0B),
+        value: mod.toDouble(),
+        title: '${((mod / total) * 100).toInt()}%',
+        radius: 50,
+        titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+      ));
+    }
+    if (weak > 0) {
+      sections.add(PieChartSectionData(
+        color: const Color(0xFFEF4444),
+        value: weak.toDouble(),
+        title: '${((weak / total) * 100).toInt()}%',
+        radius: 50,
+        titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+      ));
+    }
+
     return Card(
       elevation: 4,
       shadowColor: theme.primaryColor.withOpacity(0.1),
@@ -178,32 +192,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 flex: 2,
                 child: PieChart(
                   PieChartData(
-                    sectionsSpace: 4,
-                    centerSpaceRadius: 40,
+                    sectionsSpace: 3,
+                    centerSpaceRadius: 30,
                     startDegreeOffset: -90,
-                    sections: [
-                      PieChartSectionData(
-                        color: const Color(0xFF10B981),
-                        value: strong.toDouble(),
-                        title: '${((strong / total) * 100).toInt()}%',
-                        radius: 40,
-                        titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                      PieChartSectionData(
-                        color: const Color(0xFFF59E0B),
-                        value: mod.toDouble(),
-                        title: '${((mod / total) * 100).toInt()}%',
-                        radius: 35,
-                        titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                      ),
-                      PieChartSectionData(
-                        color: const Color(0xFFEF4444),
-                        value: weak.toDouble(),
-                        title: '${((weak / total) * 100).toInt()}%',
-                        radius: 30,
-                        titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10),
-                      ),
-                    ],
+                    sections: sections,
                   ),
                 ),
               ),
@@ -239,108 +231,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         const SizedBox(width: 8),
         Text(label, style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12, fontWeight: FontWeight.w600)),
       ],
-    );
-  }
-
-  Widget _buildLineChart(ThemeData theme) {
-    return Card(
-      elevation: 4,
-      shadowColor: theme.primaryColor.withOpacity(0.1),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.only(top: 32.0, right: 32.0, left: 16.0, bottom: 16.0),
-        child: SizedBox(
-          height: 250,
-          child: LineChart(
-            LineChartData(
-              gridData: FlGridData(
-                show: true,
-                drawVerticalLine: false,
-                horizontalInterval: 5,
-                getDrawingHorizontalLine: (value) {
-                  return FlLine(color: Colors.grey.shade200, strokeWidth: 1);
-                },
-              ),
-              titlesData: FlTitlesData(
-                show: true,
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 30,
-                    interval: 1,
-                    getTitlesWidget: (value, meta) {
-                      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                      if (value.toInt() >= 0 && value.toInt() < days.length) {
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 10.0),
-                          child: Text(days[value.toInt()], style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12)),
-                        );
-                      }
-                      return const Text('');
-                    },
-                  ),
-                ),
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    interval: 5,
-                    getTitlesWidget: (value, meta) {
-                      return Text(value.toInt().toString(), style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12));
-                    },
-                    reservedSize: 40,
-                  ),
-                ),
-              ),
-              borderData: FlBorderData(show: false),
-              minX: 0,
-              maxX: 6,
-              minY: 0,
-              maxY: 20,
-              lineBarsData: [
-                LineChartBarData(
-                  spots: const [
-                    FlSpot(0, 5),
-                    FlSpot(1, 15),
-                    FlSpot(2, 8),
-                    FlSpot(3, 12),
-                    FlSpot(4, 9),
-                    FlSpot(5, 18),
-                    FlSpot(6, 14),
-                  ],
-                  isCurved: true,
-                  color: theme.primaryColor,
-                  barWidth: 4,
-                  isStrokeCapRound: true,
-                  dotData: FlDotData(
-                    show: true,
-                    getDotPainter: (spot, percent, barData, index) {
-                      return FlDotCirclePainter(
-                        radius: 4,
-                        color: Colors.white,
-                        strokeWidth: 2,
-                        strokeColor: theme.primaryColor,
-                      );
-                    },
-                  ),
-                  belowBarData: BarAreaData(
-                    show: true,
-                    gradient: LinearGradient(
-                      colors: [
-                        theme.primaryColor.withOpacity(0.3),
-                        theme.primaryColor.withOpacity(0.0),
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

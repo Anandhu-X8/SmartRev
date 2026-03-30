@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from typing import Optional
 from models import TopicDB, QuizDB, UploadedNotesDB
 from firebase import get_db
+from auth import get_current_user_id
 import uuid
 from datetime import datetime, timedelta
 from mistralai.client import Mistral
@@ -12,10 +13,6 @@ import PyPDF2
 import docx
 
 router = APIRouter()
-
-# Dummy dependency for user integration
-def get_current_user_id():
-    return "test_user_id" # Replace with actual Firebase Auth verification
 
 def extract_text_from_file(file_path: str, filename: str) -> str:
     ext = filename.split('.')[-1].lower()

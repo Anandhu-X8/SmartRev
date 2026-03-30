@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from models import TopicCreate, TopicDB, FlashcardItem
 from firebase import get_db
+from auth import get_current_user_id
 import uuid
 from datetime import datetime, timedelta
 from mistralai.client import Mistral
@@ -14,10 +15,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# Dummy dependency for user integration
-def get_current_user_id():
-    return "test_user_id" # Replace with actual Firebase Auth verification
 
 @router.post("/", response_model=TopicDB)
 def create_topic(topic: TopicCreate, ui: str = Depends(get_current_user_id)):

@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Dict, Any
-from models import TopicDB, RevisionActivityParams, RevisionResult
+from models import TopicDB, RevisionActivityParams, RevisionResult, FlashcardRevisionResult
 from firebase import get_db
+from auth import get_current_user_id
 from mistralai.client import Mistral
 import os
 import json
@@ -10,10 +11,6 @@ from services.spaced_repetition import calculate_next_revision
 import uuid
 
 router = APIRouter()
-
-# Dummy dependency for user integration
-def get_current_user_id():
-    return "test_user_id" # Replace with actual Firebase Auth verification
 
 # Configure Mistral
 api_key = os.getenv("MISTRAL_API_KEY")
@@ -142,8 +139,60 @@ def complete_activity(result: RevisionResult, ui: str = Depends(get_current_user
     })
     
     return {
-        **update_data,
+        "memory_strength": new_strength,
+        "revision_count": current_revision_count + 1,
+        "last_revision_date": now.isoformat(),
+        "next_revision_date": next_rev.isoformat(),
         "correct_answers": correct_count,
         "total_questions": total_questions,
         "accuracy": accuracy
+    }
+
+@router.post("/complete-flashcard")
+def complete_flashcard_revision(result: FlashcardRevisionResult, ui: str = Depends(get_current_user_id)):
+    """Update topic after flashcard revision with user-rated memory strength"""
+    db = get_db()
+    doc_ref = db.collection("topics").document(result.topic_id)
+    topic_doc = doc_ref.get()
+
+    if not topic_doc.exists:
+        raise HTTPException(status_code=404, detail="Topic not found")
+
+    topic = topic_doc.to_dict()
+    current_revision_count = topic.get("revision_count", 0)
+
+    # Determine interval based on user-rated memory strength
+    strength = max(0, min(100, result.memory_strength))
+    if strength <= 40:
+        interval_days = 4   # Weak
+    elif strength <= 70:
+        interval_days = 6   # Moderate
+    else:
+        interval_days = 8   # Strong
+
+    now = datetime.utcnow()
+    next_rev = now + timedelta(days=interval_days)
+
+    update_data = {
+        "memory_strength": float(strength),
+        "revision_count": current_revision_count + 1,
+        "last_revision_date": now,
+        "next_revision_date": next_rev
+    }
+
+    doc_ref.update(update_data)
+
+    # Log history
+    history_id = str(uuid.uuid4())
+    db.collection("revision_history").document(history_id).set({
+        "topic_id": result.topic_id,
+        "user_id": ui,
+        "activity_type": "flashcard",
+        "memory_strength": strength,
+        "timestamp": now,
+    })
+
+    return {
+        **update_data,
+        "next_revision_date": next_rev.isoformat()
     }
