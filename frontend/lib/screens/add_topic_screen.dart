@@ -208,7 +208,7 @@ class _AddTopicScreenState extends State<AddTopicScreen> {
               const SizedBox(height: 32),
 
               // --- Flashcard Section ---
-              Divider(color: theme.primaryColor.withOpacity(0.3)),
+              Divider(color: theme.primaryColor.withValues(alpha: 0.3)),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -221,7 +221,7 @@ class _AddTopicScreenState extends State<AddTopicScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: theme.primaryColor.withOpacity(0.1),
+                      color: theme.primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
@@ -291,15 +291,15 @@ class _AddTopicScreenState extends State<AddTopicScreen> {
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.secondary.withOpacity(0.2),
+                      color: theme.colorScheme.secondary.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: theme.primaryColor.withOpacity(0.2)),
+                      border: Border.all(color: theme.primaryColor.withValues(alpha: 0.2)),
                     ),
                     child: Row(
                       children: [
                         CircleAvatar(
                           radius: 14,
-                          backgroundColor: theme.primaryColor.withOpacity(0.15),
+                          backgroundColor: theme.primaryColor.withValues(alpha: 0.15),
                           child: Text(
                             '${i + 1}',
                             style: TextStyle(color: theme.primaryColor, fontSize: 12, fontWeight: FontWeight.bold),

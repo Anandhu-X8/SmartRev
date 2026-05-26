@@ -14,7 +14,7 @@ class _RevisionScreenState extends State<RevisionScreen> with SingleTickerProvid
   bool _showAnswer = false;
   int? _selectedOption;
   int _correctAnswers = 0;
-  List<int> _userAnswers = [];
+  final List<int> _userAnswers = [];
   
   late AnimationController _animationController;
   late Animation<Offset> _slideAnimation;
@@ -130,7 +130,7 @@ class _RevisionScreenState extends State<RevisionScreen> with SingleTickerProvid
           preferredSize: const Size.fromHeight(6.0),
           child: LinearProgressIndicator(
             value: (_currentQuestionIndex + (_showAnswer ? 1 : 0)) / questions.length,
-            backgroundColor: theme.primaryColor.withOpacity(0.2),
+            backgroundColor: theme.primaryColor.withValues(alpha: 0.2),
             color: theme.primaryColor,
             minHeight: 6,
           ),
@@ -150,89 +150,91 @@ class _RevisionScreenState extends State<RevisionScreen> with SingleTickerProvid
             Expanded(
               child: SlideTransition(
                 position: _slideAnimation,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Card(
-                      elevation: 8,
-                      shadowColor: theme.primaryColor.withOpacity(0.15),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(32.0),
-                        child: Text(
-                          questionText,
-                          style: theme.textTheme.titleLarge?.copyWith(fontSize: 22, height: 1.4),
-                          textAlign: TextAlign.center,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Card(
+                        elevation: 8,
+                        shadowColor: theme.primaryColor.withValues(alpha: 0.15),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Text(
+                            questionText,
+                            style: theme.textTheme.titleLarge?.copyWith(fontSize: 22, height: 1.4),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 48),
-                    ...List.generate(options.length, (index) {
-                      final isSelected = _selectedOption == index;
-                      final isCorrect = index == correctIndex;
-                      
-                      Color bgColor = theme.scaffoldBackgroundColor;
-                      Color borderColor = Colors.grey.shade300;
-                      Color textColor = theme.textTheme.bodyLarge!.color!;
-                      
-                      if (_showAnswer) {
-                        if (isCorrect) {
-                          bgColor = theme.colorScheme.primary.withOpacity(0.1);
-                          borderColor = theme.colorScheme.primary;
-                          textColor = theme.colorScheme.primary;
-                        } else if (isSelected && !isCorrect) {
-                          bgColor = theme.colorScheme.error.withOpacity(0.1);
-                          borderColor = theme.colorScheme.error;
-                          textColor = theme.colorScheme.error;
+                      const SizedBox(height: 48),
+                      ...List.generate(options.length, (index) {
+                        final isSelected = _selectedOption == index;
+                        final isCorrect = index == correctIndex;
+                        
+                        Color bgColor = theme.scaffoldBackgroundColor;
+                        Color borderColor = Colors.grey.shade300;
+                        Color textColor = theme.textTheme.bodyLarge!.color!;
+                        
+                        if (_showAnswer) {
+                          if (isCorrect) {
+                            bgColor = theme.colorScheme.primary.withValues(alpha: 0.1);
+                            borderColor = theme.colorScheme.primary;
+                            textColor = theme.colorScheme.primary;
+                          } else if (isSelected && !isCorrect) {
+                            bgColor = theme.colorScheme.error.withValues(alpha: 0.1);
+                            borderColor = theme.colorScheme.error;
+                            textColor = theme.colorScheme.error;
+                          }
+                        } else if (isSelected) {
+                          bgColor = theme.primaryColor.withValues(alpha: 0.05);
+                          borderColor = theme.primaryColor;
+                          textColor = theme.primaryColor;
                         }
-                      } else if (isSelected) {
-                        bgColor = theme.primaryColor.withOpacity(0.05);
-                        borderColor = theme.primaryColor;
-                        textColor = theme.primaryColor;
-                      }
 
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          decoration: BoxDecoration(
-                            color: bgColor,
-                            border: Border.all(color: borderColor, width: isSelected || (_showAnswer && isCorrect) ? 2 : 1),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: InkWell(
-                            onTap: _showAnswer ? null : () {
-                              setState(() {
-                                _selectedOption = index;
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      options[index],
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: isSelected || (_showAnswer && isCorrect) ? FontWeight.bold : FontWeight.normal,
-                                        color: textColor,
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            decoration: BoxDecoration(
+                              color: bgColor,
+                              border: Border.all(color: borderColor, width: isSelected || (_showAnswer && isCorrect) ? 2 : 1),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: InkWell(
+                              onTap: _showAnswer ? null : () {
+                                setState(() {
+                                  _selectedOption = index;
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(16),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        options[index],
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: isSelected || (_showAnswer && isCorrect) ? FontWeight.bold : FontWeight.normal,
+                                          color: textColor,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  if (_showAnswer && isCorrect)
-                                    Icon(Icons.check_circle, color: theme.primaryColor)
-                                  else if (_showAnswer && isSelected && !isCorrect)
-                                    Icon(Icons.cancel, color: theme.colorScheme.error)
-                                ],
+                                    if (_showAnswer && isCorrect)
+                                      Icon(Icons.check_circle, color: theme.primaryColor)
+                                    else if (_showAnswer && isSelected && !isCorrect)
+                                      Icon(Icons.cancel, color: theme.colorScheme.error)
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    }),
-                  ],
+                        );
+                      }),
+                    ],
+                  ),
                 ),
               ),
             ),

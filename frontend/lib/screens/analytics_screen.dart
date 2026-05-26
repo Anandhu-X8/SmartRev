@@ -94,40 +94,74 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Widget _buildSummaryRow(int t, int s, int m, int w, ThemeData theme) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _buildStatCard('Total\nTopics', t.toString(), theme.textTheme.bodyLarge!.color!, theme.primaryColor.withOpacity(0.1), theme),
-        const SizedBox(width: 6),
-        _buildStatCard('Strong\nMemory', s.toString(), const Color(0xFF10B981), const Color(0xFF10B981).withOpacity(0.1), theme),
-        const SizedBox(width: 6),
-        _buildStatCard('Moderate', m.toString(), const Color(0xFFF59E0B), const Color(0xFFF59E0B).withOpacity(0.1), theme),
-        const SizedBox(width: 6),
-        _buildStatCard('Needs\nReview', w.toString(), const Color(0xFFEF4444), const Color(0xFFEF4444).withOpacity(0.1), theme),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Use Wrap on narrow screens, Row on wider screens
+        if (constraints.maxWidth < 380) {
+          return Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              SizedBox(
+                width: (constraints.maxWidth - 8) / 2,
+                child: _buildStatCard('Total Topics', t.toString(), theme.textTheme.bodyLarge!.color!, theme.primaryColor.withValues(alpha: 0.1), theme),
+              ),
+              SizedBox(
+                width: (constraints.maxWidth - 8) / 2,
+                child: _buildStatCard('Strong', s.toString(), const Color(0xFF10B981), const Color(0xFF10B981).withValues(alpha: 0.1), theme),
+              ),
+              SizedBox(
+                width: (constraints.maxWidth - 8) / 2,
+                child: _buildStatCard('Moderate', m.toString(), const Color(0xFFF59E0B), const Color(0xFFF59E0B).withValues(alpha: 0.1), theme),
+              ),
+              SizedBox(
+                width: (constraints.maxWidth - 8) / 2,
+                child: _buildStatCard('Needs Review', w.toString(), const Color(0xFFEF4444), const Color(0xFFEF4444).withValues(alpha: 0.1), theme),
+              ),
+            ],
+          );
+        }
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildStatCard('Total\nTopics', t.toString(), theme.textTheme.bodyLarge!.color!, theme.primaryColor.withValues(alpha: 0.1), theme),
+            const SizedBox(width: 6),
+            _buildStatCard('Strong\nMemory', s.toString(), const Color(0xFF10B981), const Color(0xFF10B981).withValues(alpha: 0.1), theme),
+            const SizedBox(width: 6),
+            _buildStatCard('Moderate', m.toString(), const Color(0xFFF59E0B), const Color(0xFFF59E0B).withValues(alpha: 0.1), theme),
+            const SizedBox(width: 6),
+            _buildStatCard('Needs\nReview', w.toString(), const Color(0xFFEF4444), const Color(0xFFEF4444).withValues(alpha: 0.1), theme),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildStatCard(String label, String value, Color textColor, Color bgColor, ThemeData theme) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 12.0),
+        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
         decoration: BoxDecoration(
           color: bgColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: textColor.withOpacity(0.2)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: textColor.withValues(alpha: 0.2)),
         ),
         child: Column(
           children: [
-            Text(
-              value,
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textColor),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor),
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               label,
-              style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: textColor.withOpacity(0.8)),
+              style: theme.textTheme.bodyMedium?.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: textColor.withValues(alpha: 0.8)),
               textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -180,7 +214,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     return Card(
       elevation: 4,
-      shadowColor: theme.primaryColor.withOpacity(0.1),
+      shadowColor: theme.primaryColor.withValues(alpha: 0.1),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Padding(
         padding: const EdgeInsets.all(24.0),

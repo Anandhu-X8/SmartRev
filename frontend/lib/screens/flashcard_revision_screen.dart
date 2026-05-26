@@ -129,7 +129,7 @@ class _FlashcardRevisionScreenState extends State<FlashcardRevisionScreen>
           preferredSize: const Size.fromHeight(6.0),
           child: LinearProgressIndicator(
             value: (_currentIndex + (_answerRevealed ? 1 : 0)) / _flashcards.length,
-            backgroundColor: theme.primaryColor.withOpacity(0.2),
+            backgroundColor: theme.primaryColor.withValues(alpha: 0.2),
             color: theme.primaryColor,
             minHeight: 6,
           ),
@@ -150,62 +150,64 @@ class _FlashcardRevisionScreenState extends State<FlashcardRevisionScreen>
             Expanded(
               child: SlideTransition(
                 position: _slideAnimation,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Question card
-                    Card(
-                      elevation: 8,
-                      shadowColor: theme.primaryColor.withOpacity(0.15),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(32.0),
-                        child: Column(
-                          children: [
-                            Icon(Icons.help_outline, color: theme.primaryColor, size: 32),
-                            const SizedBox(height: 16),
-                            Text(
-                              flashcard.question,
-                              style: theme.textTheme.titleLarge?.copyWith(fontSize: 22, height: 1.4),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Answer card (shown when revealed)
-                    if (_answerRevealed)
-                      AnimatedOpacity(
-                        opacity: _answerRevealed ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 300),
-                        child: Card(
-                          elevation: 4,
-                          shadowColor: const Color(0xFF10B981).withOpacity(0.15),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                          color: const Color(0xFF10B981).withOpacity(0.05),
-                          child: Padding(
-                            padding: const EdgeInsets.all(32.0),
-                            child: Column(
-                              children: [
-                                const Icon(Icons.lightbulb, color: Color(0xFF10B981), size: 28),
-                                const SizedBox(height: 12),
-                                Text(
-                                  flashcard.answer,
-                                  style: theme.textTheme.bodyLarge?.copyWith(
-                                    fontSize: 18,
-                                    height: 1.5,
-                                    color: const Color(0xFF065F46),
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Question card
+                      Card(
+                        elevation: 8,
+                        shadowColor: theme.primaryColor.withValues(alpha: 0.15),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Column(
+                            children: [
+                              Icon(Icons.help_outline, color: theme.primaryColor, size: 32),
+                              const SizedBox(height: 16),
+                              Text(
+                                flashcard.question,
+                                style: theme.textTheme.titleLarge?.copyWith(fontSize: 22, height: 1.4),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                  ],
+                      const SizedBox(height: 24),
+
+                      // Answer card (shown when revealed)
+                      if (_answerRevealed)
+                        AnimatedOpacity(
+                          opacity: _answerRevealed ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 300),
+                          child: Card(
+                            elevation: 4,
+                            shadowColor: const Color(0xFF10B981).withValues(alpha: 0.15),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                            color: const Color(0xFF10B981).withValues(alpha: 0.05),
+                            child: Padding(
+                              padding: const EdgeInsets.all(32.0),
+                              child: Column(
+                                children: [
+                                  const Icon(Icons.lightbulb, color: Color(0xFF10B981), size: 28),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    flashcard.answer,
+                                    style: theme.textTheme.bodyLarge?.copyWith(
+                                      fontSize: 18,
+                                      height: 1.5,
+                                      color: const Color(0xFF065F46),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -260,7 +262,8 @@ class _FlashcardRevisionScreenState extends State<FlashcardRevisionScreen>
     return Scaffold(
       appBar: AppBar(title: const Text('Rate Your Confidence')),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
+          child: Padding(
           padding: const EdgeInsets.all(32.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -318,9 +321,9 @@ class _FlashcardRevisionScreenState extends State<FlashcardRevisionScreen>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                 decoration: BoxDecoration(
-                  color: strengthColor.withOpacity(0.1),
+                  color: strengthColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: strengthColor.withOpacity(0.3)),
+                  border: Border.all(color: strengthColor.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -339,7 +342,7 @@ class _FlashcardRevisionScreenState extends State<FlashcardRevisionScreen>
                     Text(
                       '($strengthValue%)',
                       style: TextStyle(
-                        color: strengthColor.withOpacity(0.7),
+                        color: strengthColor.withValues(alpha: 0.7),
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
                       ),
@@ -356,6 +359,7 @@ class _FlashcardRevisionScreenState extends State<FlashcardRevisionScreen>
             ],
           ),
         ),
+      ),
       ),
     );
   }

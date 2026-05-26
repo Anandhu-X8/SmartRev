@@ -90,14 +90,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        "Today's Queue",
-                        style: theme.textTheme.titleLarge?.copyWith(fontSize: 22),
+                      Flexible(
+                        child: Text(
+                          "Today's Queue",
+                          style: theme.textTheme.titleLarge?.copyWith(fontSize: 22),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444).withOpacity(0.1),
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
@@ -119,10 +123,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      "Your Topics",
-                      style: theme.textTheme.titleLarge?.copyWith(fontSize: 22),
+                    Flexible(
+                      child: Text(
+                        "Your Topics",
+                        style: theme.textTheme.titleLarge?.copyWith(fontSize: 22),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     ElevatedButton.icon(
                       onPressed: () {
                         Navigator.pushNamed(context, '/upload-notes');
@@ -221,9 +229,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: theme.colorScheme.secondary.withOpacity(0.3),
+          color: theme.colorScheme.secondary.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: theme.primaryColor.withOpacity(0.3)),
+          border: Border.all(color: theme.primaryColor.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
@@ -246,11 +254,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   Text(
                     topic.name,
                     style: theme.textTheme.titleLarge?.copyWith(fontSize: 20),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     topic.subject,
                     style: theme.textTheme.bodyMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -263,7 +275,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: theme.primaryColor.withOpacity(0.4),
+                    color: theme.primaryColor.withValues(alpha: 0.4),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   )
@@ -278,14 +290,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildTopicsGrid(List<Topic> topics, ThemeData theme) {
-    return GridView.builder(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Use single column on very narrow screens
+        final crossAxisCount = constraints.maxWidth < 300 ? 1 : 2;
+        return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: 3.5,
+        mainAxisExtent: 150, // Fixed height to prevent bottom overlapping
       ),
       itemCount: topics.length,
       itemBuilder: (context, index) {
@@ -363,16 +379,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         )
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: Text(
-                      topic.name,
-                      style: theme.textTheme.titleLarge?.copyWith(fontSize: 16),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                  const SizedBox(height: 8),
+                  Text(
+                    topic.name,
+                    style: theme.textTheme.titleLarge?.copyWith(fontSize: 16),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
@@ -386,6 +400,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   Text(
                     'Revise: ${topic.nextRevisionDate}',
                     style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   )
                 ],
               ),
@@ -393,6 +409,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
           ),
         );
+      },
+    );
       },
     );
   }

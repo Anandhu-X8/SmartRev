@@ -66,6 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = credential.user;
       if (user != null) {
         final token = await user.getIdToken();
+        if (!mounted) return;
         authProvider.login(
           user.displayName ?? email.split('@').first,
           uid: user.uid,
@@ -94,40 +95,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Future<void> _handleGoogleSignIn() async {
-    setState(() => _isLoading = true);
-
-    try {
-      final firebaseService = Provider.of<FirebaseService>(context, listen: false);
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-      final credential = await firebaseService.signInWithGoogle();
-      final user = credential.user;
-      if (user != null) {
-        final token = await user.getIdToken();
-        authProvider.login(
-          user.displayName ?? user.email?.split('@').first ?? 'User',
-          uid: user.uid,
-          token: token,
-        );
-        // Initialize push notifications
-        final notifService = Provider.of<NotificationService>(context, listen: false);
-        await notifService.init(user.uid);
-        if (mounted) {
-          Navigator.pushReplacementNamed(context, '/home');
-        }
-      }
-    } on FirebaseAuthException catch (e) {
-      if (e.code != 'sign-in-cancelled') {
-        _showError(e.message ?? 'Google sign-in failed');
-      }
-    } catch (e) {
-      _showError('Google sign-in failed: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -139,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              theme.colorScheme.secondary.withOpacity(0.5),
+              theme.colorScheme.secondary.withValues(alpha: 0.5),
               theme.scaffoldBackgroundColor,
             ],
             stops: const [0.0, 0.4],
@@ -156,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: theme.primaryColor.withOpacity(0.1),
+                      color: theme.primaryColor.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -186,7 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Login Card
                   Card(
                     elevation: 10,
-                    shadowColor: theme.primaryColor.withOpacity(0.1),
+                    shadowColor: theme.primaryColor.withValues(alpha: 0.1),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(24),
                     ),
@@ -266,7 +233,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: theme.primaryColor.withOpacity(0.3),
+                                  color: theme.primaryColor.withValues(alpha: 0.3),
                                   blurRadius: 12,
                                   offset: const Offset(0, 4),
                                 )
@@ -288,32 +255,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     )
                                   : Text(_isSignUp ? 'Sign Up' : 'Log In'),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Row(
-                            children: [
-                              Expanded(child: Divider(color: Colors.grey.shade300)),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                child: Text('OR', style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
-                              ),
-                              Expanded(child: Divider(color: Colors.grey.shade300)),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          SizedBox(
-                            height: 48,
-                            child: OutlinedButton.icon(
-                              onPressed: _isLoading ? null : _handleGoogleSignIn,
-                              icon: const Icon(Icons.g_mobiledata, size: 28),
-                              label: const Text('Sign in with Google'),
-                              style: OutlinedButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                side: BorderSide(color: Colors.grey.shade300),
-                              ),
                             ),
                           ),
                         ],

@@ -72,7 +72,7 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                           child: CircularProgressIndicator(
                             value: _scoreAnimation.value * (correctAnswers / totalQuestions),
                             strokeWidth: 16,
-                            backgroundColor: Colors.grey.withOpacity(0.2),
+                            backgroundColor: Colors.grey.withValues(alpha: 0.2),
                             color: performanceColor,
                             strokeCap: StrokeCap.round,
                           ),
@@ -108,7 +108,7 @@ class _ResultsScreenState extends State<ResultsScreen> with SingleTickerProvider
                 const SizedBox(height: 32),
                 Card(
                   elevation: 8,
-                  shadowColor: Colors.black.withOpacity(0.05),
+                  shadowColor: Colors.black.withValues(alpha: 0.05),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   child: Padding(
                     padding: const EdgeInsets.all(24),
