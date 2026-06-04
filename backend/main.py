@@ -1,11 +1,15 @@
+import os
+from dotenv import load_dotenv
+
+# Load environment variables as the very first step
+env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.env'))
+load_dotenv(dotenv_path=env_path, override=True)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
-import os
 from routes import topics, revision, analytics, notes, notifications
 from firebase import init_firebase
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 init_firebase()
 
 app = FastAPI(title="Smart Revision System API")

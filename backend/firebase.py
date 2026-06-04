@@ -4,7 +4,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 
 # Project root is one level up from backend/
-_PROJECT_ROOT = os.path.join(os.path.dirname(__file__), '..')
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 # Initialize Firebase Admin
 def init_firebase():
@@ -21,9 +21,11 @@ def init_firebase():
                 project_id = service_info.get("project_id")
                 firebase_admin.initialize_app(cred, options={"projectId": project_id})
             elif cred_path:
-                # Resolve relative paths from project root
+                # Resolve relative paths from project root and normalize to absolute path
                 if not os.path.isabs(cred_path):
-                    cred_path = os.path.join(_PROJECT_ROOT, cred_path)
+                    cred_path = os.path.abspath(os.path.join(_PROJECT_ROOT, cred_path))
+                else:
+                    cred_path = os.path.abspath(cred_path)
                 cred = credentials.Certificate(cred_path)
                 # Read the file to extract project_id
                 with open(cred_path, 'r') as f:
@@ -32,12 +34,14 @@ def init_firebase():
                 firebase_admin.initialize_app(cred, options={"projectId": project_id})
             else:
                 raise Exception(
-        "Firebase credentials not found. "
-        "Please set FIREBASE_SERVICE_ACCOUNT_JSON "
-        "or GOOGLE_APPLICATION_CREDENTIALS."
-    )
+                    "Firebase credentials not found. "
+                    "Please set FIREBASE_SERVICE_ACCOUNT_JSON "
+                    "or GOOGLE_APPLICATION_CREDENTIALS."
+                )
         except Exception as e:
+            import traceback
             print(f"Warning: Firebase initialization failed. Database operations will not work. Error: {e}")
+            traceback.print_exc()
 
 def get_db():
     return firestore.client()
